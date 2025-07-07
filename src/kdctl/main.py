@@ -1,11 +1,18 @@
 
+import logging
 import os
+import sys
 from pathlib import Path
 
+import yaml
 import typer
+from kubernetes import client as kclient
+from kubernetes import config as kconfig
+from kubernetes.client.rest import ApiException
 from typing_extensions import Annotated
 
 app = typer.Typer()
+logger = logging.getLogger(__name__)
 
 def default_kube_config():
     """
@@ -65,8 +72,14 @@ def create_deployment(
     """
     Create a Deployment using a config file spec
     """
-    text = config.read_text()
-    print(f"Config file contents: {text}")
+
+    # load config file (yaml) to a dict
+    try:
+        deploy_config = yaml.safe_load(config.read_bytes())
+        logger.debug("Deployment config has valid yaml syntax")
+    except yaml.YAMLError as e:
+        logger.critical(f"Failed to parse Deployment config. Error: {e}\nQuitting..")
+        sys.exit(1)
 
     return
 
