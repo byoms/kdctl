@@ -12,7 +12,7 @@ CLI tool to create and manage Kubernetes deployments
 #### Steps
 
 ```sh
-uv tool install --from git+https://github.com/byoms/kdctl@dev/v0.1 kdctl
+uv tool install --from git+https://github.com/byoms/kdctl kdctl
 ```
 
 This installs the utility as a user local binary that can be invoked using `kdctl`. More details: [here](https://docs.astral.sh/uv/concepts/tools/#tool-executables)
@@ -75,3 +75,9 @@ The deployment info can be obtained for the above example using the team and app
 ```sh
 kdctl get devx txapp --kubeconfig /path/to/user/kubeconfig
 ```
+
+---
+
+## FUTURE SCOPE
+  - Support horizontal pod autoscaling based on resource utilisation
+  - Support autoscaling based on external systems using KEDA
