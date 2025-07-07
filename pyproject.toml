@@ -4,10 +4,12 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "typer>=0.16.0",
+]
 
 [project.scripts]
-kdctl = "kdctl:main"
+kdctl = "kdctl.main:main"
 
 [build-system]
 requires = ["hatchling"]

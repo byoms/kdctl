@@ -1,0 +1,30 @@
+name: "txapp"
+image: "hashicorp/http-echo"
+
+team: devx
+
+description: "This is a short description of this app"
+
+labels:
+  product: foo
+
+replicas: 2
+
+port: 5678
+
+
+# todo: PHASE 2
+cpu: "10m"
+memory: "32Mi"
+
+autoscale:
+  cpu: "null"
+  memory: "null"
+
+# todo: PHASE 3
+eventTrackers:
+  - type: redis
+    conf:
+      endpoint: redis-server.cluster.svc.local:6379
+      listName: test_q01
+      listLength: 3
