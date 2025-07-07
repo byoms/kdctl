@@ -76,10 +76,114 @@ def create_deployment(
     # load config file (yaml) to a dict
     try:
         deploy_config = yaml.safe_load(config.read_bytes())
-        logger.debug("Deployment config has valid yaml syntax")
+        logger.debug("Deployment config has valid yaml syntax, read successful ✓")
+        kube_config = yaml.safe_load(kubeconfig.read_bytes())
+        logger.debug("kubeconfig has valid yaml syntax, read successful ✓")
     except yaml.YAMLError as e:
-        logger.critical(f"Failed to parse Deployment config. Error: {e}\nQuitting..")
+        logger.critical(f"Failed to read config file. Error: {e}\nQuitting..")
         sys.exit(1)
+
+    kconf = kclient.Configuration()
+    kconfig.load_kube_config_from_dict(
+        kube_config,
+        client_configuration=kconf
+    )
+    with kclient.ApiClient(kconf) as api_client:
+
+        app_name = str(deploy_config['name'])
+        app_team = str(deploy_config['team'])
+
+        labels = {}
+        # the unique label of choice that identifies a deployment
+        id_label = {
+            "simplismart.ai/app-name": app_name
+        }
+        labels.update(id_label)
+        internal_labels = {
+            "simplismart.ai/mgmt": "kdctl",
+            "simplismart.ai/team-owner": app_team
+        }
+        labels.update(internal_labels)
+        user_labels = {}
+        for label_key, label_value in deploy_config['labels'].items():
+            user_labels[f"simplismart.ai/{label_key}"] = label_value
+        labels.update(user_labels)
+
+        common_metadata = kclient.V1ObjectMeta(
+            name = app_name,
+            namespace = app_team,
+            labels = labels,
+            annotations = {
+                "simplismart.ai/app-info": str(deploy_config['description'])
+            }
+        )
+
+        # define pod spec
+        app_ports = []
+        app_ports.append(
+            kclient.V1ContainerPort(
+                name = "app-service",
+                container_port = int(deploy_config['port'])
+            )
+        )
+        app_container = kclient.V1Container(
+            name = str(deploy_config['name']),
+            image = str(deploy_config['image']),
+            ports = app_ports
+        )
+        # can define additional containers here later if needed
+        containers = []
+        containers.append(app_container)
+
+        pod_spec = kclient.V1PodSpec(
+            containers = containers
+        )
+
+        # define deployment spec
+        label_selector = kclient.V1LabelSelector(
+            match_labels = id_label
+        )
+        template_spec = kclient.V1PodTemplateSpec(
+            metadata = common_metadata,
+            spec = pod_spec
+        )
+        deployment_spec = kclient.V1DeploymentSpec(
+            replicas = int(deploy_config['replicas']),
+            selector = label_selector,
+            template = template_spec
+        )
+        deployment = kclient.V1Deployment(
+            metadata = common_metadata,
+            spec = deployment_spec
+        )
+
+        # namespaces created on a per-team basisa
+        namespace = app_team
+        body = deployment
+        pretty = 'false'
+        field_manager = 'simplismart.ai/kdctl'
+        field_validation = 'Strict'
+
+        api_instance = kclient.AppsV1Api(api_client)
+
+        try:
+            api_response = api_instance.create_namespaced_deployment(
+                namespace,
+                body,
+                pretty=pretty,
+                field_manager=field_manager,
+                field_validation=field_validation
+            )
+            logger.debug("Deployment created successfully ✓")
+        except ApiException as e:
+            if e.status == 409:
+                logger.critical(f"Deployment already exists. Quitting..\n")
+            elif e.status == 400:
+                logger.critical(f"Invalid Deployment spec. Quitting..\n")
+            else:
+                logger.critical(f"Failed to create deployment. Error: {e}\nQuitting..\n")
+
+            sys.exit(1)
 
     return
 
